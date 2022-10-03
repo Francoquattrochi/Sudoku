@@ -33,17 +33,32 @@ def drawBoard():
         y = YSEP + CELLSIZE * 3 * (i + 1)
         pygame.draw.line(mw, BLACK, (XSEP, y), (XSEP + CELLSIZE * 9, y), 5)
 
-
-def updateCell(row, col):
+def getPotential(row, col):
     vert = getVertical(row, col)
     adjacent = getSquare(row, col)
     horz = getHorizontal(row, col)
+    return vert + adjacent + horz
+
+def updateCell(cell):
+    vert = getVertical(cell.row, cell.col)
+    adjacent = getSquare(cell.row, cell.col)
+    horz = getHorizontal(cell.row, cell.col)
     merged = vert + adjacent + horz
-    for cell in merged:
-        cell.potential = cell.potential.replace(board[row][col].val, " ")
-        cell.fill_color = GREY
+    for otherCell in merged:
+        otherCell.potential = otherCell.potential.replace(cell.val, " ")
+        otherCell.fill_color = GREY
 
-
+def getEmpty():
+    for row in board:
+        for cell in row:
+            if cell.val is None:
+                return cell
+def isInvalid():
+    for row in board:
+        for cell in row:
+            if len(cell.potential.replace(" ", "")) == 0 and cell.val is None:
+                return True
+    return False
 def getCell(x, y):
     row = int((x - XSEP) / CELLSIZE)
     col = int((y - YSEP) / CELLSIZE)
@@ -88,7 +103,34 @@ def getOrderedAvailability():
 def autoPlace(available):
     randCell = choice(available)
     randCell.setVal(choice(randCell.potential.replace(" ", "")))
-    updateCell(randCell.row, randCell.col)
+    updateCell(randCell)
+
+def solve():
+    global board
+    pygame.display.update()
+    clock.tick(40)
+    drawBoard()
+    cell = getEmpty()
+    if cell is None:
+        print("NO EMPTY CELL")
+        return True
+    if isInvalid():
+        return False
+
+    for num in cell.potential.replace(" ", ""):
+        cell.setVal(num)
+        updateCell(cell)
+        addToHistory()
+        if not solve():
+            history.pop()
+            board = history[-1]
+            cell = board[cell.row][cell.col]
+        else:
+            resetColor()
+            return True
+    return False
+
+
 
 
 def resetColor():
@@ -113,6 +155,7 @@ def addToHistory():
 
 
 board = createBoard()
+addToHistory()
 while isRunning:
     pygame.display.update()
     clock.tick(40)
@@ -132,10 +175,12 @@ while isRunning:
                         resetColor()
                         addToHistory()
                         currCell.setVal(key)
-                        updateCell(row, col)
+                        updateCell(currCell)
             elif event.key == pygame.K_r:
                 board = createBoard()
                 history = []
+            elif event.key == pygame.K_s:
+                solve()
     pressed = pygame.key.get_pressed()
     if pressed[pygame.K_SPACE]:
         resetColor()
